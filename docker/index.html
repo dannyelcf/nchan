@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Nchan Development Environment</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .method { font-weight: bold; color: #333; }
+        pre { background: #333; color: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Nchan Development Environment</h1>
+        <p>Welcome to your Nchan development environment! This nginx instance is compiled with the Nchan module.</p>
+        
+        <h2>📋 Available Endpoints</h2>
+        
+        <div class="endpoint">
+            <div class="method">POST /pub/{channel_id}</div>
+            <div>Publish messages to a channel</div>
+        </div>
+        
+        <div class="endpoint">
+            <div class="method">GET /sub/{channel_id}</div>
+            <div>Subscribe to a channel (long-polling)</div>
+        </div>
+        
+        <div class="endpoint">
+            <div class="method">GET|POST /pubsub/{channel_id}</div>
+            <div>Combined publisher/subscriber endpoint</div>
+        </div>
+        
+        <div class="endpoint">
+            <div class="method">GET /stats/{channel_id}</div>
+            <div>Get channel statistics</div>
+        </div>
+        
+        <div class="endpoint">
+            <div class="method">GET /nchan_stats</div>
+            <div>Get Nchan status and performance metrics</div>
+        </div>
+        
+        <h2>🧪 Quick Test</h2>
+        <p>Try these commands to test the pub/sub functionality:</p>
+        
+        <h3>1. Publish a message:</h3>
+        <pre>curl -X POST -d "Hello World!" http://localhost/pub/test</pre>
+        
+        <h3>2. Subscribe to messages:</h3>
+        <pre>curl http://localhost/sub/test</pre>
+        
+        <h3>3. Check channel stats:</h3>
+        <pre>curl http://localhost/stats/test</pre>
+        
+        <h3>4. Check Nchan status:</h3>
+        <pre>curl http://localhost/nchan_stats</pre>
+        
+        <h2>🔧 Development</h2>
+        <p>The source code is mounted at <code>/usr/src/nchan</code>. To rebuild nginx with your changes:</p>
+        <pre>cd /usr/src/nchan && /usr/src/build-nginx.sh && nginx -s reload</pre>
+        
+        <h2>📖 Documentation</h2>
+        <p>For more information about Nchan, visit <a href="https://nchan.io" target="_blank">nchan.io</a></p>
+    </div>
+</body>
+</html>

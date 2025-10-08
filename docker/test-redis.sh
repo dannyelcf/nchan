@@ -3,6 +3,9 @@
 # Redis Integration Test Script for Nchan
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(dirname "$0")"
+
 REDIS_HOST=${REDIS_HOST:-localhost:8081}
 TEST_CHANNEL="redis-test-$(date +%s)"
 
@@ -122,7 +125,7 @@ echo
 echo "🔍 Test 7: Verifying Redis backend connectivity..."
 if command -v docker >/dev/null 2>&1; then
     # Try to ping Redis directly if Docker is available
-    if docker compose exec redis redis-cli ping >/dev/null 2>&1; then
+    if docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec redis redis-cli ping >/dev/null 2>&1; then
         echo "✅ Direct Redis connectivity confirmed"
     else
         echo "⚠️  Could not verify direct Redis connectivity"

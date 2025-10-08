@@ -2,17 +2,18 @@ services:
   # Main Nchan development environment
   nchan:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: nchan-dev
     ports:
       - "8080:80"
       - "8081:8081"  # Redis-backed channels
+      - "8082:8082"  # WebSocket testing
     volumes:
       # Mount the source code for development
-      - .:/usr/src/nchan
+      - ..:/usr/src/nchan
       # Mount logs for easier debugging
-      - ./logs:/var/log/nginx
+      - ../logs:/var/log/nginx
       # Optional: Mount custom nginx configurations
       - ./dev/nginx-configs:/etc/nginx/conf.d
     environment:
@@ -159,12 +160,12 @@ services:
   # Load testing environment with wrk
   loadtest:
     build:
-      context: .
-      dockerfile: Dockerfile.loadtest
+      context: ..
+      dockerfile: docker/Dockerfile.loadtest
     container_name: nchan-loadtest
     volumes:
-      - .:/workspace
-      - ./dev/bench:/scripts
+      - ..:/workspace
+      - ../dev/bench:/scripts
     working_dir: /workspace
     networks:
       - nchan-network

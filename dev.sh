@@ -33,6 +33,9 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
+# Docker compose command with new file location
+DOCKER_COMPOSE="docker compose -f docker/docker-compose.yml"
+
 # Show usage
 show_usage() {
     echo "Nchan Docker Development Helper"
@@ -77,7 +80,7 @@ start_services() {
     fi
     
     log_info "Starting Nchan development environment..."
-    docker compose up -d $rebuild_flag
+    $DOCKER_COMPOSE up -d $rebuild_flag
     
     # Wait for services to be ready
     log_info "Waiting for services to be ready..."
@@ -94,7 +97,7 @@ start_services() {
 # Stop services
 stop_services() {
     log_info "Stopping Nchan development environment..."
-    docker compose down
+    $DOCKER_COMPOSE down
     log_success "Services stopped"
 }
 
@@ -106,16 +109,16 @@ restart_services() {
     fi
     
     log_info "Restarting Nchan development environment..."
-    docker compose down
-    docker compose up -d $rebuild_flag
+    $DOCKER_COMPOSE down
+    $DOCKER_COMPOSE up -d $rebuild_flag
     log_success "Services restarted"
 }
 
 # Rebuild nginx
 rebuild_nginx() {
     log_info "Rebuilding nginx with nchan..."
-    docker compose exec nchan /usr/src/build-nginx.sh
-    docker compose restart nchan
+    $DOCKER_COMPOSE exec nchan /usr/src/build-nginx.sh
+    $DOCKER_COMPOSE restart nchan
     log_success "Nginx rebuilt and restarted"
 }
 
@@ -124,10 +127,10 @@ show_logs() {
     local service=${1:-""}
     if [[ -n "$service" ]]; then
         log_info "Showing logs for $service..."
-        docker compose logs -f $service
+        $DOCKER_COMPOSE logs -f $service
     else
         log_info "Showing logs for all services..."
-        docker compose logs -f
+        $DOCKER_COMPOSE logs -f
     fi
 }
 
@@ -179,57 +182,54 @@ run_tests() {
 # Run load testing
 run_bench() {
     log_info "Starting load testing environment..."
-    docker compose --profile loadtest up -d loadtest
+    $DOCKER_COMPOSE --profile loadtest up -d loadtest
     
     log_info "Running comprehensive load tests..."
-    ./test-load.sh
+    ./docker/test-load.sh
 }
 
 # Run HTTP load testing only
 run_load_http() {
     log_info "Starting load testing environment..."
-    docker compose --profile loadtest up -d loadtest
+    $DOCKER_COMPOSE --profile loadtest up -d loadtest
     
     log_info "Running HTTP load tests..."
-    docker compose exec loadtest env DURATION=${DURATION:-30} CONNECTIONS=${CONNECTIONS:-50} /tmp/http-bench.sh
+    $DOCKER_COMPOSE exec loadtest env DURATION=${DURATION:-30} CONNECTIONS=${CONNECTIONS:-50} /scripts/http-bench.sh
 }
 
 # Run WebSocket load testing only
 run_load_ws() {
     log_info "Starting load testing environment..."
-    docker compose --profile loadtest up -d loadtest
+    $DOCKER_COMPOSE --profile loadtest up -d loadtest
     
     log_info "Running WebSocket load tests..."
-    # Copy the WebSocket test script to the container
-    docker compose exec loadtest sh -c "cat > /tmp/websocket-test.py" < test-websocket-load.py
-    docker compose exec loadtest chmod +x /tmp/websocket-test.py
     
     log_info "Testing WebSocket publishing..."
-    docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest pub 50 0.1
+    $DOCKER_COMPOSE exec loadtest python3 /scripts/websocket-test.py ws://nchan:8082 loadtest pub 50 0.1
     
     log_info "Testing WebSocket subscribing..."
-    (docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest-sub sub 10 &) && \
+    ($DOCKER_COMPOSE exec loadtest python3 /scripts/websocket-test.py ws://nchan:8082 loadtest-sub sub 10 &) && \
     sleep 2 && \
-    docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest-sub pub 10 0.5
+    $DOCKER_COMPOSE exec loadtest python3 /scripts/websocket-test.py ws://nchan:8082 loadtest-sub pub 10 0.5
 }
 
 # Run Redis load testing only
 run_load_redis() {
     log_info "Starting load testing environment..."
-    docker compose --profile loadtest up -d loadtest
+    $DOCKER_COMPOSE --profile loadtest up -d loadtest
     
     log_info "Running Redis backend load tests..."
     log_info "Testing Redis publishing performance..."
-    docker compose exec loadtest sh -c 'for i in $(seq 1 100); do curl -s -X POST -d "Redis load message $i" http://nchan:8081/redis-pub/redis-loadtest > /dev/null; done; echo "Published 100 messages to Redis backend"'
+    $DOCKER_COMPOSE exec loadtest sh -c 'for i in $(seq 1 100); do curl -s -X POST -d "Redis load message $i" http://nchan:8081/redis-pub/redis-loadtest > /dev/null; done; echo "Published 100 messages to Redis backend"'
     
     log_info "Testing Redis subscribing..."
-    docker compose exec loadtest timeout 5s curl http://nchan:8081/redis-sub/redis-loadtest || echo "Redis subscribe test completed"
+    $DOCKER_COMPOSE exec loadtest timeout 5s curl http://nchan:8081/redis-sub/redis-loadtest || echo "Redis subscribe test completed"
 }
 
 # Start with cluster
 start_cluster() {
     log_info "Starting with Redis cluster..."
-    docker compose --profile cluster up -d
+    $DOCKER_COMPOSE --profile cluster up -d
     log_success "Redis cluster started"
 }
 
@@ -237,13 +237,13 @@ start_cluster() {
 get_shell() {
     local service=${1:-"nchan"}
     log_info "Getting shell access to $service container..."
-    docker compose exec $service bash
+    $DOCKER_COMPOSE exec $service bash
 }
 
 # Show status
 show_status() {
     log_info "Service status:"
-    docker compose ps
+    $DOCKER_COMPOSE ps
     
     echo ""
     log_info "Health checks:"
@@ -256,7 +256,7 @@ show_status() {
     fi
     
     # Check redis
-    if docker compose exec redis redis-cli ping &>/dev/null; then
+    if $DOCKER_COMPOSE exec redis redis-cli ping &>/dev/null; then
         echo -e "  Redis: ${GREEN}✓ Healthy${NC}"
     else
         echo -e "  Redis: ${RED}✗ Unhealthy${NC}"
@@ -270,7 +270,7 @@ clean_up() {
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         log_info "Cleaning up..."
-        docker compose down -v --remove-orphans
+        $DOCKER_COMPOSE down -v --remove-orphans
         docker system prune -f
         log_success "Cleanup completed"
     else

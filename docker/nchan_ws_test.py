@@ -1,12 +1,3 @@
-#!/bin/bash
-
-# WebSocket testing script using Python
-# Tests WebSocket pub/sub functionality
-
-NCHAN_WS_HOST=${NCHAN_WS_HOST:-localhost:8082}
-TEST_CHANNEL=${TEST_CHANNEL:-ws_test_$(date +%s)}
-
-cat > /tmp/nchan_ws_test.py << 'EOF'
 #!/usr/bin/env python3
 
 import asyncio
@@ -129,35 +120,3 @@ if __name__ == "__main__":
         pass
     
     print("🎉 WebSocket test completed!")
-EOF
-
-echo "🔧 Starting WebSocket test..."
-echo "Host: $NCHAN_WS_HOST"
-echo "Channel: $TEST_CHANNEL"
-echo
-
-# Check if Python 3 is available
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python 3 is required for WebSocket testing"
-    echo "Please install Python 3 or use the Docker environment:"
-    echo "  docker compose exec loadtest python3 /scripts/websocket-test.py"
-    exit 1
-fi
-
-# Check if websockets module is available
-if ! python3 -c "import websockets" 2>/dev/null; then
-    echo "📦 Installing websockets module..."
-    pip3 install websockets 2>/dev/null || {
-        echo "❌ Failed to install websockets module"
-        echo "Please install it manually: pip3 install websockets"
-        echo "Or use the Docker environment which has it pre-installed"
-        exit 1
-    }
-fi
-
-# Run the WebSocket test
-echo "🚀 Running WebSocket test..."
-python3 /tmp/nchan_ws_test.py "$NCHAN_WS_HOST" "$TEST_CHANNEL"
-
-# Cleanup
-rm -f /tmp/nchan_ws_test.py
