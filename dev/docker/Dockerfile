@@ -80,29 +80,30 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 # Set up working directory
 WORKDIR $WORKDIR
 
-# Copy necessary files for bundle install (including nchan_tools-gem)
-COPY dev/Gemfile* ./
-COPY dev/nchan_tools-gem ./nchan_tools-gem/
-
-# Install Ruby gems as root to avoid permission issues
-RUN bundle install
-
 # Create user for development (matches host user permissions)
 RUN groupadd -g 1000 developer && \
     useradd -u 1000 -g developer -m -s /bin/bash developer && \
     chown -R developer:developer $WORKDIR
 
-# Configure git for safe directories to fix dubious ownership errors
+# Configure git globally for safe directories to fix dubious ownership errors
 RUN git config --global --add safe.directory '*' && \
     git config --global user.name "Developer" && \
     git config --global user.email "developer@nchan.dev"
 
-# Switch to development user
+# Switch to development user early to avoid permission issues
 USER developer
 
-# Configure bundler for user-local gem installation
+# Copy necessary files for bundle install (including nchan_tools-gem) as user
+COPY --chown=developer:developer dev/Gemfile* ./
+COPY --chown=developer:developer dev/nchan_tools-gem ./nchan_tools-gem/
+
+# Configure bundler for user-local gem installation before install
 RUN bundle config set --local path ~/.local/gems && \
-    bundle config set --local bin ~/.local/bin
+    bundle config set --local bin ~/.local/bin && \
+    mkdir -p ~/.local/gems ~/.local/bin
+
+# Install Ruby gems as user to avoid permission conflicts
+RUN bundle install
 
 # Set up shell environment with local gems in PATH
 RUN echo 'export PS1="\[\033[01;32m\]nchan-dev\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "' >> ~/.bashrc && \
