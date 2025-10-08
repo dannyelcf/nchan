@@ -2,7 +2,7 @@
 
 A comprehensive Docker-based development environment for the [Nchan](https://nchan.io) pub/sub module for nginx, built with nginx-1.29.2.
 
-## � Quick Start
+## ⚡ Quick Start
 
 ```bash
 # Start the development environment
@@ -11,23 +11,28 @@ A comprehensive Docker-based development environment for the [Nchan](https://nch
 # Test basic functionality
 ./test-nchan.sh
 
+# Test Redis integration
+./test-redis.sh
+
 # Open your browser to http://localhost:8080
 ```
 
 ## ✅ Current Status
 
 **✅ Working Features:**
+
 - ✅ nginx-1.29.2 with Nchan module compiled and running
 - ✅ Basic pub/sub functionality (`/pub/{channel}`, `/sub/{channel}`)
+- ✅ **Redis integration** (`http://localhost:8081/redis-pub/`, `/redis-sub/`)
 - ✅ WebSocket support (`/ws/{channel}`)
 - ✅ Channel statistics (`/stats/{channel}`)
 - ✅ Global statistics (`/nchan_stats`)
 - ✅ Development helper scripts
 - ✅ Automated testing tools
-- ✅ Redis server (available for future integration)
+- ✅ Redis server with full Nchan integration
 
 **⚠️ Known Limitations:**
-- ⚠️ Redis integration temporarily disabled due to configuration conflicts
+
 - ⚠️ Load testing environment available but not fully tested
 
 ## 🛠️ What's Included
@@ -37,6 +42,7 @@ A comprehensive Docker-based development environment for the [Nchan](https://nch
 - **redis** - Redis server for future Redis-backed channels (Port: 6379)
 
 ### **Available Endpoints:**
+
 - `http://localhost:8080` - Main web interface with testing tools
 - `http://localhost:8080/pub/{channel}` - Publish to channel
 - `http://localhost:8080/sub/{channel}` - Subscribe to channel  
@@ -44,6 +50,9 @@ A comprehensive Docker-based development environment for the [Nchan](https://nch
 - `http://localhost:8080/ws/{channel}` - WebSocket endpoint
 - `http://localhost:8080/nchan_stats` - Performance statistics
 - `http://localhost:8080/stats/{channel}` - Per-channel statistics
+- `http://localhost:8081/redis-pub/{channel}` - Redis-backed publishing
+- `http://localhost:8081/redis-sub/{channel}` - Redis-backed subscribing
+- `http://localhost:8081/redis-health` - Redis backend health check
 
 ## 📁 Project Structure
 
@@ -136,9 +145,15 @@ docker compose --profile cluster --profile tools --profile loadtest up -d
 
 2. **Test with Redis:**
    ```bash
-   # Redis is automatically available at redis:6379 from within containers
-   curl -X POST -d "Redis message" http://localhost:8081/redis-pub/test
+   # Test Redis integration
+   ./test-redis.sh
+   
+   # Manual Redis testing
+   curl -X POST -d 'Redis message' http://localhost:8081/redis-pub/test
    curl http://localhost:8081/redis-sub/test
+   
+   # Check Redis health
+   curl http://localhost:8081/redis-health
    ```
 
 ## 🧪 Testing and Benchmarking
