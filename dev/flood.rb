@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 require 'securerandom'
-require_relative 'pubsub.rb'
+require 'nchan_tools/pubsub'
 require 'json'
 require 'celluloid/current'
 
@@ -11,10 +11,10 @@ SUB_URL="http://127.0.0.1:8082/sub/broadcast/"
 PUB_URL="http://127.0.0.1:8082/pub/"
 
 class Chans
-  
-  
+
+
   class Chan
-    
+
     class PubWrap
       include Celluloid::IO
       def initialize(url, opt={})
@@ -25,7 +25,7 @@ class Chans
         chans.published!
       end
     end
-    
+
     attr_accessor :id, :sub, :pub
     def initialize(id, chan, subscriber_opt={})
       @id=id
@@ -34,7 +34,7 @@ class Chans
       @pub=Publisher.new("#{PUB_URL}#{id}")
       @chan = chan
     end
-        
+
     def pub(what)
       if PubWrap === @pub
         @pub.async.post(what, @chan)
@@ -44,12 +44,12 @@ class Chans
       end
     end
   end
-  
+
   attr_accessor :published
   def published!
     @published += 1
   end
-  
+
   def initialize(seed=0)
     @rng = Random.new(seed)
     @chans = []
@@ -57,7 +57,7 @@ class Chans
     @sent=0
     @published = 0
   end
-  
+
   def chid
     id=""
     num=rand(2..45)
@@ -66,9 +66,9 @@ class Chans
     end
     id
   end
-  
+
   private :chid
-  
+
   def chan
     rn = @rng.rand(MAX_CHANS)
     chan = @chans[rn]
@@ -78,14 +78,14 @@ class Chans
     end
     chan
   end
-  
+
   def pubrand
     mn = @rng.rand(@msgs.length)
     chan.pub(@msgs[mn])
   end
-  
+
   def randmsg
-    
+
   end
 end
 
@@ -98,7 +98,7 @@ class OutputTimer
     @chans = chans
     @prev_count = 0
     @interval = interval
-    @last_msg_length = 0 
+    @last_msg_length = 0
     @timer = every(interval) do
       pubd = @chans.published
       puts "Publishing at #{(pubd - @prev_count) / interval} msgs/sec (total: #{pubd})"

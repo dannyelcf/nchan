@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 require 'securerandom'
-require_relative 'pubsub.rb'
+require 'nchan_tools/pubsub'
 require 'json'
 require "reel"
 
@@ -30,18 +30,18 @@ class AuthServerRunner
       puts "init"
       super(host, port, &method(:on_connection))
     end
-    
+
     def on_connection(connection)
       connection.each_request do |request|
         handle_request(request)
       end
     end
-    
+
     def handle_request(request)
       request.respond :ok, ""
     end
   end
-  
+
   def run
     AuthServer.run
   end
@@ -54,18 +54,18 @@ class SubTest
     @out=out
     @sub=Subscriber.new "#{SUB_URL}#{id}", 1, timeout: TIMEOUT, quit_message: 'FIN', client: DEFAULT_CLIENT, nostore: true
     @sub.on_message do |msg|
-      if @expected != msg.message 
+      if @expected != msg.message
         raise "unexpected message for id #{id}. expected #{@expected}, got #{msg.message}"
       elsif @out
         puts "received correct message for #{id}"
       end
     end
   end
-  
+
   def expect_msg(msg)
     @expected=msg
   end
-  
+
   def run
     @sub.run
   end
@@ -77,11 +77,11 @@ class TestRig
     @subs={}
     @pub = Publisher.new '', accept: 'text/json', nostore: true
   end
-  
+
   def [](id)
     @subs[id]
   end
-  
+
   def sub(id=nil)
     id = short_id if id.nil?
     raise "#{id} already running" if @subs[id]
@@ -89,26 +89,26 @@ class TestRig
     @subs[id] = SubTest.new(id, @out)
     @subs[id].run
   end
-  
+
   def pub(id)
     raise "#{id} not subscribed" unless @subs[id]
     msg = short_msg
     @subs[id].expect_msg(msg)
     @pub.with_url("#{PUB_URL}#{id}").post(msg)
-    
+
     info=JSON.parse @pub.response_body
-    
+
     if info["subscribers"] != 1
       raise "subscribers != 1 for id #{id}"
     end
   end
-  
+
   def unsub(id=nil)
     @subs[id].terminate
     @subs.delete id
     @ids.delete id
   end
-  
+
   def unsub_all
     @subs.each do |sub|
       sub.terminate
@@ -116,15 +116,15 @@ class TestRig
     @subs.empty!
     @ids.clear
   end
-  
+
   def last_id
     @last_id ||= random_id
   end
-  
+
   def random_id
     @ids.sample
   end
-  
+
   def post_again
     id=last_id
     out "post again to #{id}"
@@ -137,16 +137,16 @@ class TestRig
     pub(id)
     @last_id=id
   end
-  
+
   def out(str)
     puts str if @out
   end
-  
+
   def output!
     @out=true
   end
 end
-  
+
 
 auth = AuthServerRunner.new
 auth.async.run
@@ -154,7 +154,7 @@ sleep 5
 
 rig = TestRig.new
 
-class Runner 
+class Runner
   def initialize(rig, count)
     @rig = rig
     @rig.output!
@@ -162,7 +162,7 @@ class Runner
       @rig.sub
     end
   end
-  
+
   def run
     while true do
       if rand(2)==1
@@ -170,8 +170,8 @@ class Runner
       else
         @rig.post_again
       end
-      
-      
+
+
       t = rand(1..7)
       puts "wait #{t} sec"
       sleep t

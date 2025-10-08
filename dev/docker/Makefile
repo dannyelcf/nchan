@@ -1,7 +1,7 @@
 # Nchan Development Environment Makefile
 COMPOSE = docker compose -f docker-compose.yml
 
-.PHONY: help build up down shell loadtest-shell clean prepare rebuild-nginx test bench pub sub bundle-install nginx-start nginx-stop fix-git test-pubsub
+.PHONY: help build up down shell loadtest-shell clean prepare rebuild-nginx test bench pub sub bundle-install nginx-start nginx-stop fix-git test-pubsub pressure longtest flood chattertest authserver pub-multi flock pressure-example longtest-example flood-example chattertest-example authserver-example pub-multi-example flock-example pub-example sub-example
 
 help:
 	@echo "Nchan Development Environment Commands"
@@ -19,11 +19,21 @@ help:
 	@echo "  make bundle-install - Install Ruby gems"
 	@echo "  make bundle-clean - Clean bundle cache and reinstall"
 	@echo "  make fix-git      - Fix git configuration issues"
+	@echo "  make authserver   - Start authentication server for testing"
+	@echo "  make authserver-example - Start authserver with verbose logging"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test         - Run test suite"
 	@echo "  make test-with-nginx - Auto-start nginx and run tests"
 	@echo "  make bench        - Run benchmarks"
+	@echo "  make pressure     - Run pressure/stress tests"
+	@echo "  make pressure-example - Run pressure test example (20 concurrent, fast)"
+	@echo "  make longtest     - Run long-duration tests"
+	@echo "  make longtest-example - Run longtest example"
+	@echo "  make flood        - Run flood tests"
+	@echo "  make flood-example - Run flood test example"
+	@echo "  make chattertest  - Run chat/messaging tests"
+	@echo "  make chattertest-example - Run chattertest example"
 	@echo "  make test-pubsub  - Test pub/sub messaging system"
 	@echo "  make test-lua     - Test Lua installation"
 	@echo "  make test-gcc     - Test GCC installation"
@@ -39,8 +49,14 @@ help:
 	@echo "Publishing Tools:"
 	@echo "  make pub                                     - Show publisher help"
 	@echo "  make pub ARGS='-m \"Hello\" /pubsub/test'    - Publish message (exits after)"
+	@echo "  make pub-example                             - Publish example message"
+	@echo "  make pub-multi                               - Multi-publisher tool"
+	@echo "  make pub-multi-example                       - Run pub-multi example"
 	@echo "  make sub                                     - Show subscriber help"
 	@echo "  make sub ARGS='/pubsub/test'                 - Subscribe (auto-websocket)"
+	@echo "  make sub-example                             - Subscribe to example channel"
+	@echo "  make flock                                   - Flock testing tool"
+	@echo "  make flock-example                           - Run flock test example"
 	@echo ""
 	@echo "Quick Start Examples:"
 	@echo "  make up && make rebuild-nginx && make nginx-start"
@@ -86,7 +102,7 @@ rebuild-nginx:
 
 test:
 	@echo "Running test suite..."
-	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && ln -sf nchan_tools-gem/lib/nchan_tools/pubsub.rb pubsub.rb && bundle install --quiet && bundle exec ruby test.rb --server http://127.0.0.1:8082 --profile external"
+	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && bundle install --quiet && bundle exec ruby test.rb --server http://127.0.0.1:8082 --profile external"
 
 test-with-nginx:
 	@echo "Starting nginx and running test suite..."
@@ -176,3 +192,112 @@ test-pubsub:
 	@$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && curl -s http://localhost:8082/pubsub/test | grep 'Real-time test message'" >/dev/null && echo "✅ HTTP retrieval works" || echo "❌ HTTP retrieval failed"
 	@echo "✅ Pub/sub system is working!"
 	@echo "Note: For real-time messaging, start subscriber FIRST, then publish"
+
+# Additional test tools
+pressure:
+	@echo "Running pressure/stress tests..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make pressure ARGS='[options]'"; \
+		echo "Example: make pressure ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pressure.rb --help"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pressure.rb $(ARGS)"; \
+	fi
+
+longtest:
+	@echo "Running long-duration tests..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make longtest ARGS='[options]'"; \
+		echo "Example: make longtest ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby longtest.rb --help 2>/dev/null || echo 'No help available, running with defaults'"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby longtest.rb $(ARGS)"; \
+	fi
+
+flood:
+	@echo "Running flood tests..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make flood ARGS='[options]'"; \
+		echo "Example: make flood ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flood.rb --help 2>/dev/null || echo 'No help available, running with defaults'"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flood.rb $(ARGS)"; \
+	fi
+
+chattertest:
+	@echo "Running chat/messaging tests..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make chattertest ARGS='channel pub/sub concurrency'"; \
+		echo "Example: make chattertest ARGS='testchan pub \"Hello World\"'"; \
+		echo "Example: make chattertest ARGS='testchan sub 5'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby chattertest.rb --help 2>/dev/null || echo 'Usage: chattertest.rb [channel] [pub/sub] [concurrency/message]'"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby chattertest.rb $(ARGS)"; \
+	fi
+
+authserver:
+	@echo "Starting authentication server for testing..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make authserver ARGS='[options]'"; \
+		echo "Example: make authserver ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby authserver.rb --help"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby authserver.rb $(ARGS)"; \
+	fi
+
+pub-multi:
+	@echo "Running multi-publisher tool..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make pub-multi ARGS='[options]'"; \
+		echo "Example: make pub-multi ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pub-multi.rb --help 2>/dev/null || echo 'No help available, running with defaults'"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pub-multi.rb $(ARGS)"; \
+	fi
+
+flock:
+	@echo "Running flock testing tool..."
+	@if [ -z "$(ARGS)" ]; then \
+		echo "Usage: make flock ARGS='[options]'"; \
+		echo "Example: make flock ARGS='--help'"; \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flock.rb --help 2>/dev/null || echo 'No help available, running with defaults'"; \
+	else \
+		$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flock.rb $(ARGS)"; \
+	fi
+
+# Example tasks with predefined ARGS for easy testing
+pressure-example:
+	@echo "Running pressure test example (20 concurrent, 0.5s interval, 10% jitter)..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pressure.rb --parallel 20 --interval 0.5 --jitter 10"
+
+longtest-example:
+	@echo "Running longtest example..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby longtest.rb"
+
+flood-example:
+	@echo "Running flood test example..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flood.rb"
+
+chattertest-example:
+	@echo "Running chattertest example (testchan pub 'Hello from chattertest')..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby chattertest.rb testchan pub 'Hello from chattertest example'"
+
+authserver-example:
+	@echo "Starting authserver with verbose logging..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby authserver.rb --verbose"
+
+pub-multi-example:
+	@echo "Running pub-multi example..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby pub-multi.rb"
+
+flock-example:
+	@echo "Running flock test example..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby flock.rb"
+
+pub-example:
+	@echo "Publishing example message to /pubsub/demo..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle install --quiet && echo 'Publishing example message...' && ./pub.rb -1 -m 'Hello from pub-example at $(shell date)' /pubsub/demo"
+
+sub-example:
+	@echo "Subscribing to example channel /pubsub/demo with websocket..."
+	$(COMPOSE) exec -it nchan-dev /bin/bash -c "cd /app/dev && bundle install --quiet && echo 'Subscribing to example channel...' && ./sub.rb -c websocket /pubsub/demo"

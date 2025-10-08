@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 require 'test/unit'
 require 'securerandom'
-require "./pubsub.rb"
+require 'nchan_tools/pubsub'
 
 #invocation: ./chattertest.rb [channel] [pub/sub] [concurrency/message]
 role, channel, sub_concurrency, pub_msg = nil, nil, nil, nil

@@ -1,6 +1,6 @@
 #!/bin/ruby
 require "pry"
-require_relative "pubsub.rb"
+require 'nchan_tools/pubsub'
 require "optparse"
 
 client=:longpoll
@@ -45,7 +45,7 @@ class BenchDB
   def initialize
     @db=[]
   end
-  
+
   def add(start_time, snd_time, rcv_time, measured_time)
     if start_time && snd_time < start_time
       #use measured time if possible
@@ -60,15 +60,15 @@ class BenchDB
       #puts "approx time"
     end
   end
-  
+
   def analyze
     return "no data" if @db.count == 0
-    
+
     sum=0
     @db.each{|v| sum += v}
     "#{@db.count} entries, avg: #{sum/@db.count}"
   end
-  
+
   def to_s
     @db.join ", "
   end
@@ -88,7 +88,7 @@ end
 class BenchSub
   attr_accessor :sub, :benchdb, :startmsg_received, :msg_received
   def initialize(url, parallel, client_type, benchdb)
-    self.sub = Subscriber.new url, parallel, timeout: SUB_TIMEOUT, client: client_type, nomsg: true, nostore: true
+    self.sub = NchanTools::Subscriber.new url, parallel, timeout: SUB_TIMEOUT, client: client_type, nomsg: true, nostore: true
     self.benchdb = benchdb
     self.startmsg_received = 0
     self.msg_received = 0
@@ -105,27 +105,27 @@ class BenchSub
       else
         t_now = Time.now.to_f
         t_msg = msg.to_f
-        if sub.client_class == Subscriber::LongPollClient
+        if sub.client_class == NchanTools::Subscriber::LongPollClient
           t_start = req.time_requested
           measured_time = req.request_time
-        elsif sub.client_class == Subscriber::EventSourceClient
+        elsif sub.client_class == NchanTools::Subscriber::EventSourceClient
           t_start = req.original_options[:last_msg_time] || req.original_options[:start_time]
-          measured_time = nil 
-          
-        elsif sub.client_class == Subscriber::WebSocketClient
+          measured_time = nil
+
+        elsif sub.client_class == NchanTools::Subscriber::WebSocketClient
           t_start = req.last_message_time
-          measured_time = nil 
+          measured_time = nil
         end
         self.msg_received += 1
         benchdb.add(t_start, t_msg, t_now, measured_time)
       end
     end
-    
+
   end
   def run
     sub.run
   end
-  
+
   def wait
     sub.wait
   end
@@ -142,11 +142,11 @@ sub_url = url(sub_uri)
 benchmark = BenchDB.new
 
 benches = []
-threads.times do 
+threads.times do
   benches << BenchSub.new(sub_url, par, client, benchmark)
 end
 
-pub = Publisher.new pub_url, nostore: true, nomsg: true, timeout: 30
+pub = NchanTools::Publisher.new pub_url, nostore: true, nomsg: true, timeout: 30
 
 num_msgs = 20
 msgs = []
@@ -175,4 +175,3 @@ benches.each do |b|
 end
 
 puts benchmark.analyze
-

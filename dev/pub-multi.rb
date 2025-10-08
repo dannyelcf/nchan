@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 require 'securerandom'
-require_relative 'pubsub.rb'
+require 'nchan_tools/pubsub'
 require "optparse"
 server= "localhost:8082"
 msg=false

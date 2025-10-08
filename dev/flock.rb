@@ -3,7 +3,7 @@ require 'rubygems'
 require 'bundler/setup'
 
 require 'securerandom'
-require_relative 'pubsub.rb'
+require 'nchan_tools/pubsub'
 require "optparse"
 require 'timers'
 
@@ -20,11 +20,11 @@ $rand_seed = SecureRandom.rand(10000000)
 class Flock
   class PubSub
     attr_accessor :pub, :sub, :channel_id, :published
-    
+
     @msgnum = 0
-    
+
     @@rand = Random.new($rand_seed)
-    
+
     def self.short_id
       @@rand.bytes(5).unpack('H*')[0]
       #SecureRandom.hex.to_i(16).to_s(36)[0..5]
@@ -33,7 +33,7 @@ class Flock
       part=part[1..-1] if part[0]=="/"
       "#{$server_url}/#{part}"
     end
-    
+
     def initialize(concurrent_clients=1, opt={})
       test_name = caller_locations(1,1)[0].label
       urlpart=opt[:urlpart] || 'broadcast'
@@ -56,7 +56,7 @@ class Flock
           elsif num >1 && @lastnum[bundle] != num - 1
             #puts "wrong message for channel #{@channel_id} (prev: #{@lastmsg[bundle] or "<none>"}, cur: #{num})!"
           end
-          
+
           @lastnum[bundle] = num
           @lastmsg[bundle] = msg.message
           @lastmsg_anybundle = msg.message
@@ -66,7 +66,7 @@ class Flock
         puts "failure for sub on channel #{@channel_id}:#{err}. published times: #{@published}. last received (this bundle): #{@lastmsg[bundle] or "<none>"}, last received(any bundle): #{@lastmsg_anybundle or "<none>"}"
         false
       end
-      
+
       @pub = Publisher.new self.class.url("#{pub_url}#{@channel_id}#{opt[:pub_param] ? "&#{URI.encode_www_form(opt[:pub_param])}" : ""}"), timeout: timeout, websocket: opt[:websocket_publisher]
     end
   end
@@ -78,7 +78,7 @@ class Flock
       @pubsub << PubSub.new($parallel, timeout: $sub_timeout, channel: id)
     end
   end
-  
+
   def run
     puts "subscribing to #{@pubsub.count} channels.."
     @pubsub.each do |ps|
@@ -86,14 +86,14 @@ class Flock
       ps.sub.wait :ready
     end
     puts "waiting a little..."
-    
+
     puts "ok go!"
     while true do
       random_publish
       #sleep(rand 0.01..0.015)
     end
   end
-  
+
   def random_publish
     ps = @pubsub.sample
     ps.published+=1
@@ -101,7 +101,7 @@ class Flock
     @n[ps]+=1
     begin
       resp = ps.pub.post "global message #{@n[ps]}"
-    
+
       active_subs = resp.body.match(/active subscribers: (\d+)/)[1].to_i
       if active_subs != $parallel
         #puts "wrong active_subscriber count for #{ps.channel_id}: expected #{$parallel}, got #{active_subs}"
