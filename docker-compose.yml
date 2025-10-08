@@ -1,0 +1,189 @@
+services:
+  # Main Nchan development environment
+  nchan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nchan-dev
+    ports:
+      - "8080:80"
+    volumes:
+      # Mount the source code for development
+      - .:/usr/src/nchan
+      # Mount logs for easier debugging
+      - ./logs:/var/log/nginx
+      # Optional: Mount custom nginx configurations
+      - ./dev/nginx-configs:/etc/nginx/conf.d
+    environment:
+      - REBUILD=false
+    depends_on:
+      - redis
+    networks:
+      - nchan-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis server for testing Redis-backed channels
+  redis:
+    image: redis:7-alpine
+    container_name: nchan-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - nchan-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cluster setup for testing clustering features
+  # Redis cluster node 1
+  redis-cluster-1:
+    image: redis:7-alpine
+    container_name: nchan-redis-cluster-1
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    command: >
+      redis-server --port 7001
+      --cluster-enabled yes
+      --cluster-config-file nodes-7001.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfilename appendonly-7001.aof
+      --dbfilename dump-7001.rdb
+      --logfile /var/log/redis/redis-7001.log
+      --daemonize no
+    volumes:
+      - redis-cluster-1-data:/data
+    networks:
+      - nchan-network
+    profiles:
+      - cluster
+
+  # Redis cluster node 2
+  redis-cluster-2:
+    image: redis:7-alpine
+    container_name: nchan-redis-cluster-2
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    command: >
+      redis-server --port 7002
+      --cluster-enabled yes
+      --cluster-config-file nodes-7002.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfilename appendonly-7002.aof
+      --dbfilename dump-7002.rdb
+      --logfile /var/log/redis/redis-7002.log
+      --daemonize no
+    volumes:
+      - redis-cluster-2-data:/data
+    networks:
+      - nchan-network
+    profiles:
+      - cluster
+
+  # Redis cluster node 3
+  redis-cluster-3:
+    image: redis:7-alpine
+    container_name: nchan-redis-cluster-3
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    command: >
+      redis-server --port 7003
+      --cluster-enabled yes
+      --cluster-config-file nodes-7003.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --appendfilename appendonly-7003.aof
+      --dbfilename dump-7003.rdb
+      --logfile /var/log/redis/redis-7003.log
+      --daemonize no
+    volumes:
+      - redis-cluster-3-data:/data
+    networks:
+      - nchan-network
+    profiles:
+      - cluster
+
+  # Redis cluster setup container (runs once to initialize cluster)
+  redis-cluster-setup:
+    image: redis:7-alpine
+    container_name: nchan-redis-cluster-setup
+    command: >
+      sh -c "
+        echo 'Waiting for Redis nodes to start...' &&
+        sleep 10 &&
+        redis-cli --cluster create redis-cluster-1:7001 redis-cluster-2:7002 redis-cluster-3:7003 --cluster-replicas 0 --cluster-yes &&
+        echo 'Redis cluster initialized successfully!'
+      "
+    depends_on:
+      - redis-cluster-1
+      - redis-cluster-2
+      - redis-cluster-3
+    networks:
+      - nchan-network
+    profiles:
+      - cluster
+
+  # Development tools container
+  devtools:
+    image: alpine:latest
+    container_name: nchan-devtools
+    command: tail -f /dev/null
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    networks:
+      - nchan-network
+    profiles:
+      - tools
+    environment:
+      - TERM=xterm-256color
+    tty: true
+    stdin_open: true
+
+  # Load testing environment with wrk
+  loadtest:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: nchan-loadtest
+    volumes:
+      - .:/workspace
+      - ./dev/bench:/scripts
+    working_dir: /workspace
+    networks:
+      - nchan-network
+    profiles:
+      - loadtest
+    command: tail -f /dev/null
+
+networks:
+  nchan-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  redis-data:
+    driver: local
+  redis-cluster-1-data:
+    driver: local
+  redis-cluster-2-data:
+    driver: local
+  redis-cluster-3-data:
+    driver: local

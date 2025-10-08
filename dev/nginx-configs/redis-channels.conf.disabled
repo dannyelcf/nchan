@@ -1,0 +1,43 @@
+# Advanced Nchan configuration for Redis-backed channels
+server {
+    listen 8081;
+    server_name redis-channels;
+    
+    # Configure Redis connection (using modern syntax)
+    nchan_redis_pass redis:6379;
+    
+    # Redis-backed publisher
+    location ~ /redis-pub/(.*)$ {
+        nchan_publisher;
+        nchan_channel_id $1;
+        nchan_channel_group redis_group;
+        nchan_message_buffer_length 100;
+        nchan_message_timeout 10m;
+    }
+    
+    # Redis-backed subscriber
+    location ~ /redis-sub/(.*)$ {
+        nchan_subscriber;
+        nchan_channel_id $1;
+        nchan_channel_group redis_group;
+        nchan_subscriber_first_message oldest;
+    }
+    
+    # Redis-backed pubsub
+    location ~ /redis-pubsub/(.*)$ {
+        nchan_pubsub;
+        nchan_channel_id $1;
+        nchan_channel_group redis_group;
+        nchan_message_buffer_length 100;
+        nchan_message_timeout 10m;
+    }
+    
+    # Channel group management
+    location /redis-group {
+        nchan_group_location;
+        nchan_channel_group redis_group;
+        nchan_group_max_channels 1000;
+        nchan_group_max_subscribers 10000;
+        nchan_group_max_messages 100000;
+    }
+}
