@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     make \
+    cmake \
     autoconf \
     automake \
     libtool \
@@ -37,7 +38,14 @@ RUN apt-get update && apt-get install -y \
     # Lua development
     lua5.2 \
     lua5.2-dev \
+    luajit \
     luarocks \
+    libuv1-dev \
+    libssl-dev \
+    libffi-dev \
+    libgmp-dev \
+    libev-dev \
+    libevent-dev \
     # Python and related tools
     python3 \
     python3-pip \
@@ -70,6 +78,44 @@ RUN cd /tmp && \
     make && \
     cp wrk /usr/local/bin/ && \
     cd / && rm -rf /tmp/wrk
+
+# Enhanced Lua environment
+RUN luarocks install luaposix && \
+    luarocks install argparse && \
+    luarocks install cqueues && \
+    luarocks install hdrhistogram && \
+    luarocks install luv && \
+    luarocks install redis-lua && \
+    luarocks install lpeg && \
+    luarocks install luasocket && \
+    luarocks install lua-cjson && \
+    luarocks install mm && \
+    luarocks install lrexlib-pcre && \
+    luarocks install url
+
+# Install LuaJIT-specific dependencies
+RUN luarocks --lua-version=5.1 install argparse || true && \
+    luarocks --lua-version=5.1 install cjson || true && \
+    luarocks --lua-version=5.1 install luaposix || true
+
+# Try to install more advanced Lua modules (with fallback)
+RUN luarocks install luv || echo "luv installation failed - advanced async features unavailable" && \
+    luarocks install lpty || echo "lpty installation failed - terminal features unavailable" && \
+    luarocks install hdrhistogram || echo "hdrhistogram installation failed - advanced metrics unavailable" && \
+    luarocks install cqueues || echo "cqueues installation failed - async queue features unavailable"
+
+# Install Luvit from source with better error handling
+RUN cd /tmp && \
+    git clone --recursive https://github.com/luvit/luvit.git && \
+    cd luvit && \
+    make && \
+    cp luvit /usr/local/bin/ && \
+    cd / && rm -rf /tmp/luvit && \
+    echo "✅ Luvit installed successfully" || echo "❌ Luvit installation failed - some benchmarks unavailable"
+
+# Install additional Redis and HTTP client libraries
+RUN luarocks install redis-lua || echo "redis-lua installation failed" && \
+    luarocks install http || echo "http library installation failed"
 
 # Install Artillery for advanced load testing
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
@@ -113,7 +159,7 @@ RUN echo 'export PS1="\[\033[01;32m\]nchan-dev\[\033[00m\]:\[\033[01;34m\]\w\[\0
 
 # Health check to ensure all tools are available
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ruby --version && lua5.2 -v && gcc --version && python3 --version
+    CMD ruby --version && lua5.2 -v && luajit -v && gcc --version && python3 --version
 
 # Default command
 CMD ["/bin/bash"]
