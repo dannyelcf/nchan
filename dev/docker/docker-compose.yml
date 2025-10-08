@@ -1,0 +1,36 @@
+services:
+  # Main development environment
+  nchan-dev:
+    build:
+      context: ../../
+      dockerfile: dev/docker/Dockerfile
+    container_name: nchan-dev
+    working_dir: /app/dev
+    network_mode: host
+    volumes:
+      # Mount entire project root to /app (includes .git, src, dev, etc.)
+      - ../../:/app:rw
+      # Preserve bash history
+      - nchan-dev-bash-history:/home/developer/.bash_history
+    environment:
+      - NCHAN_HOST=localhost
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - NGINX_CONF=/app/dev/nginx.conf
+      - DEVELOPMENT=1
+    tty: true
+    stdin_open: true
+    command: /bin/bash
+
+  # Redis service for backend testing (using host networking)
+  redis:
+    image: redis:7-alpine
+    container_name: nchan-redis
+    network_mode: host
+    volumes:
+      - redis-data:/data
+    command: redis-server --port 6379 --appendonly yes
+
+volumes:
+  redis-data:
+  nchan-dev-bash-history:
