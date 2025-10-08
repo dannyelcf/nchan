@@ -86,15 +86,15 @@ rebuild-nginx:
 
 test:
 	@echo "Running test suite..."
-	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && bundle install --quiet && ruby test.rb --server http://127.0.0.1:8082 --profile external"
+	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && ln -sf nchan_tools-gem/lib/nchan_tools/pubsub.rb pubsub.rb && bundle install --quiet && bundle exec ruby test.rb --server http://127.0.0.1:8082 --profile external"
 
 test-with-nginx:
 	@echo "Starting nginx and running test suite..."
-	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && ./nginx.sh > /tmp/nginx.log 2>&1 & nginx_pid=\$$!; sleep 3; netstat -tlnp | grep :8082 || (echo 'nginx failed to start on port 8082'; cat /tmp/nginx.log; kill \$$nginx_pid 2>/dev/null; exit 1); export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && bundle install --quiet && ruby test.rb --server http://127.0.0.1:8082 --profile external; test_exit=\$$?; kill \$$nginx_pid 2>/dev/null; exit \$$test_exit"
+	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && ./nginx.sh > /tmp/nginx.log 2>&1 & nginx_pid=\$$!; sleep 3; netstat -tlnp | grep :8082 || (echo 'nginx failed to start on port 8082'; cat /tmp/nginx.log; kill \$$nginx_pid 2>/dev/null; exit 1); export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && bundle install --quiet && bundle exec ruby test.rb --server http://127.0.0.1:8082 --profile external; test_exit=\$$?; kill \$$nginx_pid 2>/dev/null; exit \$$test_exit"
 
 bench:
 	@echo "Running benchmarks..."
-	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && export GIT_DISCOVERY_ACROSS_FILESYSTEM=1 && bundle install --quiet && ruby bench.rb"
+	$(COMPOSE) exec nchan-dev /bin/bash -c "cd /app/dev && bundle exec ruby bench.rb"
 
 pub:
 	@echo "Starting publisher..."
