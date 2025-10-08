@@ -46,17 +46,27 @@ show_usage() {
     echo "  rebuild                  Rebuild nginx with nchan and restart"
     echo "  logs [service]           Show logs for all services or specific service"
     echo "  test                     Run basic functionality tests"
-    echo "  bench                    Run load testing (starts loadtest profile)"
+    echo "  bench                    Run comprehensive load testing suite"
+    echo "  test-load-http           Run HTTP load testing only"
+    echo "  test-load-ws             Run WebSocket load testing only"
+    echo "  test-load-redis          Run Redis backend load testing only"
     echo "  cluster                  Start with Redis cluster"
     echo "  shell [service]          Get shell access to container"
     echo "  status                   Show status of all services"
     echo "  clean                    Clean up containers and volumes"
+    echo ""
+    echo "Load Testing Options:"
+    echo "  Environment variables for load testing:"
+    echo "    DURATION=30              Test duration in seconds (default: 30)"
+    echo "    CONNECTIONS=50           Concurrent connections (default: 50)"
     echo ""
     echo "Examples:"
     echo "  ./dev.sh start --rebuild     # Start and rebuild nginx"
     echo "  ./dev.sh logs nchan          # Show nginx logs"
     echo "  ./dev.sh shell nchan         # Get shell in nchan container"
     echo "  ./dev.sh test                # Test basic pub/sub functionality"
+    echo "  ./dev.sh bench               # Run comprehensive load tests"
+    echo "  DURATION=60 ./dev.sh test-load-http  # HTTP load test for 60s"
 }
 
 # Start services
@@ -169,10 +179,51 @@ run_tests() {
 # Run load testing
 run_bench() {
     log_info "Starting load testing environment..."
-    docker compose --profile loadtest up -d
+    docker compose --profile loadtest up -d loadtest
     
-    log_info "Running HTTP benchmarks..."
-    docker compose exec loadtest /scripts/http-bench.sh
+    log_info "Running comprehensive load tests..."
+    ./test-load.sh
+}
+
+# Run HTTP load testing only
+run_load_http() {
+    log_info "Starting load testing environment..."
+    docker compose --profile loadtest up -d loadtest
+    
+    log_info "Running HTTP load tests..."
+    docker compose exec loadtest env DURATION=${DURATION:-30} CONNECTIONS=${CONNECTIONS:-50} /tmp/http-bench.sh
+}
+
+# Run WebSocket load testing only
+run_load_ws() {
+    log_info "Starting load testing environment..."
+    docker compose --profile loadtest up -d loadtest
+    
+    log_info "Running WebSocket load tests..."
+    # Copy the WebSocket test script to the container
+    docker compose exec loadtest sh -c "cat > /tmp/websocket-test.py" < test-websocket-load.py
+    docker compose exec loadtest chmod +x /tmp/websocket-test.py
+    
+    log_info "Testing WebSocket publishing..."
+    docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest pub 50 0.1
+    
+    log_info "Testing WebSocket subscribing..."
+    (docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest-sub sub 10 &) && \
+    sleep 2 && \
+    docker compose exec loadtest python3 /tmp/websocket-test.py ws://nchan:8082 loadtest-sub pub 10 0.5
+}
+
+# Run Redis load testing only
+run_load_redis() {
+    log_info "Starting load testing environment..."
+    docker compose --profile loadtest up -d loadtest
+    
+    log_info "Running Redis backend load tests..."
+    log_info "Testing Redis publishing performance..."
+    docker compose exec loadtest sh -c 'for i in $(seq 1 100); do curl -s -X POST -d "Redis load message $i" http://nchan:8081/redis-pub/redis-loadtest > /dev/null; done; echo "Published 100 messages to Redis backend"'
+    
+    log_info "Testing Redis subscribing..."
+    docker compose exec loadtest timeout 5s curl http://nchan:8081/redis-sub/redis-loadtest || echo "Redis subscribe test completed"
 }
 
 # Start with cluster
@@ -249,6 +300,15 @@ case "${1:-""}" in
         ;;
     "bench")
         run_bench
+        ;;
+    "test-load-http")
+        run_load_http
+        ;;
+    "test-load-ws")
+        run_load_ws
+        ;;
+    "test-load-redis")
+        run_load_redis
         ;;
     "cluster")
         start_cluster

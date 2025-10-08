@@ -30,10 +30,8 @@ A comprehensive Docker-based development environment for the [Nchan](https://nch
 - ✅ Development helper scripts
 - ✅ Automated testing tools
 - ✅ Redis server with full Nchan integration
-
-**⚠️ Known Limitations:**
-
-- ⚠️ Load testing environment available but not fully tested
+- ✅ **Load testing environment** with HTTP/WebSocket/Redis benchmarking
+- ✅ Comprehensive performance testing suite
 
 ## 🛠️ What's Included
 
@@ -160,12 +158,34 @@ docker compose --profile cluster --profile tools --profile loadtest up -d
 
 ### Load Testing
 
+**Quick Commands:**
+```bash
+# Run all load tests
+./dev.sh bench
+
+# Test HTTP endpoints only
+./dev.sh test-load-http
+
+# Test WebSocket connections only  
+./dev.sh test-load-ws
+
+# Test Redis backend only
+./dev.sh test-load-redis
+```
+
+**Manual Testing:**
+
 Start the load testing container:
 ```bash
 docker compose --profile loadtest up -d loadtest
 ```
 
-Run HTTP benchmarks:
+Run comprehensive test suite:
+```bash
+docker compose exec loadtest /scripts/test-load.sh
+```
+
+Run specific HTTP benchmarks:
 ```bash
 docker compose exec loadtest /scripts/http-bench.sh
 ```
@@ -177,6 +197,15 @@ docker compose exec loadtest python3 /scripts/websocket-test.py ws://nchan:80 te
 
 # Subscribe for 30 seconds
 docker compose exec loadtest python3 /scripts/websocket-test.py ws://nchan:80 test sub 30
+```
+
+**Environment Variables:**
+- `DURATION=30` - Test duration in seconds (default: 30)
+- `CONNECTIONS=50` - Concurrent connections (default: 50)
+
+Example with custom settings:
+```bash
+DURATION=60 CONNECTIONS=100 ./dev.sh test-load-http
 ```
 
 ### Redis Cluster Testing
