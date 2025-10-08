@@ -1,38 +1,37 @@
 # Load Testing Scripts
 
-This directory contains externalized scripts for load testing the Nchan environment.
+This directory serves as documentation for the load testing setup. The actual scripts are located in `dev/bench/` and mounted via Docker volume.
 
-## Files
+## Script Sources
 
-### `websocket-test.py`
-- **Purpose**: WebSocket load testing script
-- **Usage**: `python3 websocket-test.py <uri> <channel> <pub|sub> [args...]`
-- **Features**:
-  - Publish messages to WebSocket channels
-  - Subscribe to WebSocket channels
-  - Configurable message count and delay
+All load testing scripts are sourced from the existing `dev/bench/` directory:
 
-### `http-bench.sh`
-- **Purpose**: HTTP endpoint benchmarking using wrk
-- **Usage**: Called via environment variables
-- **Environment Variables**:
-  - `NCHAN_HOST` - Target host (default: nchan:80)
-  - `CHANNEL` - Channel name (default: test)  
-  - `DURATION` - Test duration in seconds (default: 30)
-  - `CONNECTIONS` - Concurrent connections (default: 100)
-  - `RATE` - Target request rate (default: 1000)
+- `websocket-test.py` → `dev/bench/websocket-test.py`
+- `http-bench.sh` → `dev/bench/http-bench.sh`
+- `publish.lua` → `dev/bench/publish.lua`
+- `nchan_ws_test.py` → `dev/bench/nchan_ws_test.py`
+- And many more comprehensive testing utilities
 
-### `publish.lua`
-- **Purpose**: Lua script for wrk to simulate publishing
-- **Features**: Generates sequential test messages with timestamps
+## Docker Integration
 
-## Integration
+The loadtest container mounts `dev/bench/` as `/scripts/` via docker-compose volume:
 
-These scripts are copied to both:
-1. `/scripts/` in the Docker container during build
-2. `dev/bench/` directory (mounted as `/scripts` in loadtest container)
+```yaml
+volumes:
+  - ../dev/bench:/scripts
+```
 
-The mounting strategy ensures the scripts are available for load testing while maintaining externalized source files.
+This ensures we use the existing, well-maintained scripts instead of creating duplicates.
+
+## Available Scripts
+
+The `dev/bench/` directory contains comprehensive testing utilities:
+
+- **WebSocket Testing**: `websocket-test.py`, `nchan_ws_test.py`, `test-websocket-load.py`
+- **HTTP Benchmarking**: `http-bench.sh`, `benchi.lua`
+- **Redis Testing**: `redis-load.sh`, `redis-subscribe-test.sh`
+- **Lua Scripts**: `publish.lua`, `cqb.lua`, `config.lua`
+- **Advanced Tools**: `master.lua`, `slave.lua`, `publisher.lua`, `subscriber.lua`
 
 ## Usage Examples
 
@@ -45,12 +44,18 @@ docker compose exec loadtest python3 /scripts/websocket-test.py ws://nchan:80 te
 
 # WebSocket subscribing  
 docker compose exec loadtest python3 /scripts/websocket-test.py ws://nchan:80 test sub 30
+
+# Redis load testing
+docker compose exec loadtest /scripts/redis-load.sh
 ```
 
 ## Development
 
-When modifying these scripts:
-1. Edit the source files in `docker/loadtest/`
-2. Copy changes to `dev/bench/`: `cp docker/loadtest/* dev/bench/`
-3. Rebuild loadtest container: `docker compose build loadtest`
+When modifying scripts:
+
+1. Edit the source files in `dev/bench/`
+2. No copying needed - changes are immediately available via volume mount
+3. Rebuild loadtest container if dependencies change: `docker compose build loadtest`
 4. Test the changes
+
+This approach maintains the single source of truth in `dev/bench/` while enabling Docker-based testing.
